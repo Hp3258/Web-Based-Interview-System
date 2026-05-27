@@ -36,7 +36,7 @@ const sessionSchema = new mongoose.Schema(
       {
         type: {
           type: String,
-          enum: ["fullscreen_exit", "tab_switch"],
+          enum: ["fullscreen_exit", "tab_switch", "phone_detected", "person_away", "looking_away", "multiple_persons", "external_webcam", "suspicious_object"],
         },
         timestamp: {
           type: Date,
