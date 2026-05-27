@@ -31,6 +31,20 @@ const sessionSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    // proctoring: track candidate violations (tab switch, fullscreen exit)
+    violations: [
+      {
+        type: {
+          type: String,
+          enum: ["fullscreen_exit", "tab_switch"],
+        },
+        timestamp: {
+          type: Date,
+          default: Date.now,
+        },
+        description: String,
+      },
+    ],
   },
   { timestamps: true }
 );

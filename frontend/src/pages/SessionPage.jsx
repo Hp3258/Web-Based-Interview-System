@@ -7,7 +7,7 @@ import { executeCode } from "../lib/piston";
 import Navbar from "../components/Navbar";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { getDifficultyBadgeClass } from "../lib/utils";
-import { Loader2Icon, LinkIcon, LogOutIcon, PhoneOffIcon } from "lucide-react";
+import { Loader2Icon, LinkIcon, LogOutIcon, PhoneOffIcon, ShieldAlertIcon, ShieldCheckIcon, MaximizeIcon, AlertTriangleIcon } from "lucide-react";
 import CodeEditorPanel from "../components/CodeEditorPanel";
 import OutputPanel from "../components/OutputPanel";
 
@@ -15,6 +15,7 @@ import useStreamClient from "../hooks/useStreamClient";
 import { StreamCall, StreamVideo } from "@stream-io/video-react-sdk";
 import VideoCallUI from "../components/VideoCallUI";
 import toast from "react-hot-toast";
+import useProctoring from "../hooks/useProctoring";
 
 function SessionPage() {
   const navigate = useNavigate();
@@ -40,6 +41,14 @@ function SessionPage() {
     isParticipant
   );
 
+  // ─── Proctoring (only active for candidates) ──────────────────────
+  const isCandidate = isParticipant && !isHost;
+  const { violationCount, terminated, fullscreenActive, enterFullscreen, maxWarnings } =
+    useProctoring(id, isCandidate, session?.status === "active", channel);
+
+  // host-side: track violations reported by candidate in real-time
+  const [hostViolationCount, setHostViolationCount] = useState(0);
+
   // problem selection is now done inside the session (decoupled from session title)
   const problems = Object.values(PROBLEMS);
   const [selectedProblemTitle, setSelectedProblemTitle] = useState("");
@@ -59,6 +68,21 @@ function SessionPage() {
 
     // remove the joinSessionMutation, refetch from dependencies to avoid infinite loop
   }, [session, user, loadingSession, isHost, isParticipant, id]);
+
+  // host-side: listen for proctoring violation events from candidate
+  useEffect(() => {
+    if (!channel || !isHost) return;
+    const handler = (event) => {
+      if (event.user?.id === user?.id) return;
+      setHostViolationCount(event.violationCount || 0);
+      toast.error(
+        `🚨 Candidate violation #${event.violationCount}: ${event.description}`,
+        { duration: 5000 }
+      );
+    };
+    channel.on("proctoring_violation", handler);
+    return () => channel.off("proctoring_violation", handler);
+  }, [channel, isHost, user?.id]);
 
   // redirect the "participant" when session ends
   useEffect(() => {
@@ -162,7 +186,80 @@ function SessionPage() {
     <div className="h-screen bg-base-100 flex flex-col">
       <Navbar />
 
-      <div className="flex-1">
+      {/* ── Proctoring Status Bar (Candidate) ── */}
+      {isCandidate && session?.status === "active" && !terminated && (
+        <div className={`flex items-center justify-between px-4 py-2 text-sm font-medium border-b ${
+          violationCount === 0
+            ? "bg-success/10 border-success/20 text-success"
+            : violationCount < maxWarnings
+            ? "bg-warning/10 border-warning/20 text-warning"
+            : "bg-error/10 border-error/20 text-error"
+        }`}>
+          <div className="flex items-center gap-2">
+            {violationCount === 0 ? (
+              <ShieldCheckIcon className="w-4 h-4" />
+            ) : (
+              <ShieldAlertIcon className="w-4 h-4" />
+            )}
+            <span>
+              {violationCount === 0
+                ? "Proctoring active — Stay in fullscreen, do not switch tabs"
+                : `Warnings: ${violationCount}/${maxWarnings} — ${maxWarnings - violationCount} remaining before termination`}
+            </span>
+          </div>
+          {!fullscreenActive && (
+            <button
+              onClick={enterFullscreen}
+              className="btn btn-xs btn-warning gap-1"
+            >
+              <MaximizeIcon className="w-3 h-3" />
+              Re-enter Fullscreen
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* ── Proctoring Status Bar (Host) ── */}
+      {isHost && session?.status === "active" && hostViolationCount > 0 && (
+        <div className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-error/10 border-b border-error/20 text-error">
+          <AlertTriangleIcon className="w-4 h-4" />
+          <span>Candidate has {hostViolationCount} proctoring violation(s)</span>
+          {hostViolationCount >= maxWarnings && (
+            <span className="badge badge-error badge-sm ml-2">TERMINATED</span>
+          )}
+        </div>
+      )}
+
+      {/* ── Terminated Overlay (blocks candidate) ── */}
+      {terminated && (
+        <div className="flex-1 flex items-center justify-center bg-base-200">
+          <div className="card bg-base-100 shadow-2xl max-w-lg">
+            <div className="card-body items-center text-center">
+              <div className="w-24 h-24 bg-error/10 rounded-full flex items-center justify-center mb-4">
+                <ShieldAlertIcon className="w-12 h-12 text-error" />
+              </div>
+              <h2 className="card-title text-2xl text-error">Session Terminated</h2>
+              <p className="text-base-content/70 mt-2">
+                You have exceeded the maximum number of allowed violations ({maxWarnings}).
+                This session has been flagged for review.
+              </p>
+              <p className="text-base-content/50 text-sm mt-1">
+                The interviewer has been notified of all violations.
+              </p>
+              <div className="card-actions mt-6">
+                <button
+                  onClick={() => navigate("/dashboard")}
+                  className="btn btn-error"
+                >
+                  Return to Dashboard
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!terminated && <div className="flex-1">
         <PanelGroup direction="horizontal">
           {/* LEFT PANEL - CODE EDITOR & PROBLEM DETAILS */}
           <Panel defaultSize={50} minSize={30}>
@@ -378,7 +475,7 @@ function SessionPage() {
             </div>
           </Panel>
         </PanelGroup>
-      </div>
+      </div>}
     </div>
   );
 }

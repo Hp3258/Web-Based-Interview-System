@@ -93,7 +93,7 @@ function HomePage() {
 
               <button className="btn btn-outline btn-lg">
                 <VideoIcon className="size-5" />
-                Watch Demo
+                
               </button>
             </div>
 
@@ -108,7 +108,7 @@ function HomePage() {
                 <div className="stat-title">Sessions</div>
               </div>
               <div className="stat">
-                <div className="stat-value text-accent">99%</div>
+                <div className="stat-value text-accent">90%</div>
                 <div className="stat-title">Uptime</div>
               </div>
             </div>

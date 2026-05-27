@@ -160,3 +160,31 @@ export async function endSession(req, res) {
     res.status(500).json({ message: "Internal Server Error" });
   }
 }
+
+export async function recordViolation(req, res) {
+  try {
+    const { id } = req.params;
+    const { type, description } = req.body;
+
+    if (!["fullscreen_exit", "tab_switch"].includes(type)) {
+      return res.status(400).json({ message: "Invalid violation type" });
+    }
+
+    const session = await Session.findById(id);
+    if (!session) return res.status(404).json({ message: "Session not found" });
+    if (session.status !== "active") {
+      return res.status(400).json({ message: "Session is not active" });
+    }
+
+    session.violations.push({ type, description, timestamp: new Date() });
+    await session.save();
+
+    res.status(200).json({
+      violationCount: session.violations.length,
+      message: "Violation recorded",
+    });
+  } catch (error) {
+    console.log("Error in recordViolation controller:", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}

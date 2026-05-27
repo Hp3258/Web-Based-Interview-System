@@ -28,6 +28,13 @@ getActiveSessions: async () => {
     const response = await axiosInstance.post(`/sessions/${id}/end`);
     return response.data;
   },
+  recordViolation: async ({ sessionId, type, description }) => {
+    const response = await axiosInstance.post(`/sessions/${sessionId}/violations`, {
+      type,
+      description,
+    });
+    return response.data;
+  },
   getStreamToken: async () => {
     const response = await axiosInstance.get(`/chat/token`);
     return response.data;
