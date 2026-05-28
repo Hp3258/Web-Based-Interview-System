@@ -59,20 +59,10 @@ export default function useProctoring(sessionId, isCandidate, isActive, channel)
           .catch(() => {});
       }
 
-      const remaining = MAX_WARNINGS - newCount;
-
-      if (remaining > 0) {
-        toast.error(
-          `⚠️ Warning ${newCount}/${MAX_WARNINGS}: ${description}. ${remaining} warning(s) left before session termination!`,
-          { duration: 5000 }
-        );
-      } else {
-        setTerminated(true);
-        toast.error(
-          "🚫 Maximum violations reached! Your session has been flagged and terminated.",
-          { duration: 8000 }
-        );
-      }
+      toast.error(
+        `⚠️ Warning #${newCount}: ${description}`,
+        { duration: 5000 }
+      );
     },
     [sessionId, channel]
   );

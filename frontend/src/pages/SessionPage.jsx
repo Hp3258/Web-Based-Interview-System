@@ -7,7 +7,7 @@ import { executeCode } from "../lib/piston";
 import Navbar from "../components/Navbar";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { getDifficultyBadgeClass } from "../lib/utils";
-import { Loader2Icon, LinkIcon, LogOutIcon, PhoneOffIcon, ShieldAlertIcon, ShieldCheckIcon, MaximizeIcon, AlertTriangleIcon } from "lucide-react";
+import { Loader2Icon, LinkIcon, LogOutIcon, PhoneOffIcon, ShieldAlertIcon, ShieldCheckIcon, MaximizeIcon, AlertTriangleIcon, BrainCircuitIcon, CameraIcon } from "lucide-react";
 import CodeEditorPanel from "../components/CodeEditorPanel";
 import OutputPanel from "../components/OutputPanel";
 
@@ -16,6 +16,7 @@ import { StreamCall, StreamVideo } from "@stream-io/video-react-sdk";
 import VideoCallUI from "../components/VideoCallUI";
 import toast from "react-hot-toast";
 import useProctoring from "../hooks/useProctoring";
+import useAIProctoring from "../hooks/useAIProctoring";
 
 function SessionPage() {
   const navigate = useNavigate();
@@ -43,11 +44,16 @@ function SessionPage() {
 
   // ─── Proctoring (only active for candidates) ──────────────────────
   const isCandidate = isParticipant && !isHost;
-  const { violationCount, terminated, fullscreenActive, enterFullscreen, maxWarnings } =
+  const { violationCount, fullscreenActive, enterFullscreen } =
     useProctoring(id, isCandidate, session?.status === "active", channel);
+
+  // AI proctoring (phone/gaze/webcam detection)
+  const { aiReady, alerts: aiAlerts, cameraCount } =
+    useAIProctoring(id, isCandidate, session?.status === "active", false, channel);
 
   // host-side: track violations reported by candidate in real-time
   const [hostViolationCount, setHostViolationCount] = useState(0);
+  const [hostAiAlerts, setHostAiAlerts] = useState([]);
 
   // problem selection is now done inside the session (decoupled from session title)
   const problems = Object.values(PROBLEMS);
@@ -74,11 +80,20 @@ function SessionPage() {
     if (!channel || !isHost) return;
     const handler = (event) => {
       if (event.user?.id === user?.id) return;
-      setHostViolationCount(event.violationCount || 0);
-      toast.error(
-        `🚨 Candidate violation #${event.violationCount}: ${event.description}`,
-        { duration: 5000 }
-      );
+      // AI alerts are separate from the fullscreen/tab violation counter
+      if (event.ai) {
+        setHostAiAlerts((prev) => {
+          const next = [event.description, ...prev].slice(0, 10);
+          return next;
+        });
+        toast.error(`🤖 AI: ${event.description}`, { duration: 5000 });
+      } else {
+        setHostViolationCount(event.violationCount || 0);
+        toast.error(
+          `🚨 Candidate violation #${event.violationCount}: ${event.description}`,
+          { duration: 5000 }
+        );
+      }
     };
     channel.on("proctoring_violation", handler);
     return () => channel.off("proctoring_violation", handler);
@@ -187,13 +202,11 @@ function SessionPage() {
       <Navbar />
 
       {/* ── Proctoring Status Bar (Candidate) ── */}
-      {isCandidate && session?.status === "active" && !terminated && (
+      {isCandidate && session?.status === "active" && (
         <div className={`flex items-center justify-between px-4 py-2 text-sm font-medium border-b ${
           violationCount === 0
             ? "bg-success/10 border-success/20 text-success"
-            : violationCount < maxWarnings
-            ? "bg-warning/10 border-warning/20 text-warning"
-            : "bg-error/10 border-error/20 text-error"
+            : "bg-warning/10 border-warning/20 text-warning"
         }`}>
           <div className="flex items-center gap-2">
             {violationCount === 0 ? (
@@ -204,62 +217,52 @@ function SessionPage() {
             <span>
               {violationCount === 0
                 ? "Proctoring active — Stay in fullscreen, do not switch tabs"
-                : `Warnings: ${violationCount}/${maxWarnings} — ${maxWarnings - violationCount} remaining before termination`}
+                : `Warnings: ${violationCount} — Violations are being reported to interviewer`}
             </span>
           </div>
-          {!fullscreenActive && (
-            <button
-              onClick={enterFullscreen}
-              className="btn btn-xs btn-warning gap-1"
-            >
-              <MaximizeIcon className="w-3 h-3" />
-              Re-enter Fullscreen
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {/* AI monitoring badge */}
+            <span className={`badge badge-sm gap-1 ${aiReady ? 'badge-info' : 'badge-ghost'}`}>
+              <BrainCircuitIcon className="w-3 h-3" />
+              {aiReady ? 'AI Monitoring' : 'AI Loading…'}
+            </span>
+            {cameraCount > 1 && (
+              <span className="badge badge-sm badge-warning gap-1">
+                <CameraIcon className="w-3 h-3" />
+                {cameraCount} cameras
+              </span>
+            )}
+            {!fullscreenActive && (
+              <button
+                onClick={enterFullscreen}
+                className="btn btn-xs btn-warning gap-1"
+              >
+                <MaximizeIcon className="w-3 h-3" />
+                Re-enter Fullscreen
+              </button>
+            )}
+          </div>
         </div>
       )}
 
       {/* ── Proctoring Status Bar (Host) ── */}
-      {isHost && session?.status === "active" && hostViolationCount > 0 && (
-        <div className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-error/10 border-b border-error/20 text-error">
-          <AlertTriangleIcon className="w-4 h-4" />
-          <span>Candidate has {hostViolationCount} proctoring violation(s)</span>
-          {hostViolationCount >= maxWarnings && (
-            <span className="badge badge-error badge-sm ml-2">TERMINATED</span>
+      {isHost && session?.status === "active" && (hostViolationCount > 0 || hostAiAlerts.length > 0) && (
+        <div className="flex items-center gap-3 px-4 py-2 text-sm font-medium bg-error/10 border-b border-error/20 text-error">
+          <AlertTriangleIcon className="w-4 h-4 shrink-0" />
+          {hostViolationCount > 0 && (
+            <span>Tab/FS violations: {hostViolationCount}</span>
+          )}
+
+          {hostAiAlerts.length > 0 && (
+            <span className="flex items-center gap-1">
+              <BrainCircuitIcon className="w-3.5 h-3.5" />
+              AI: {hostAiAlerts[0]}
+            </span>
           )}
         </div>
       )}
 
-      {/* ── Terminated Overlay (blocks candidate) ── */}
-      {terminated && (
-        <div className="flex-1 flex items-center justify-center bg-base-200">
-          <div className="card bg-base-100 shadow-2xl max-w-lg">
-            <div className="card-body items-center text-center">
-              <div className="w-24 h-24 bg-error/10 rounded-full flex items-center justify-center mb-4">
-                <ShieldAlertIcon className="w-12 h-12 text-error" />
-              </div>
-              <h2 className="card-title text-2xl text-error">Session Terminated</h2>
-              <p className="text-base-content/70 mt-2">
-                You have exceeded the maximum number of allowed violations ({maxWarnings}).
-                This session has been flagged for review.
-              </p>
-              <p className="text-base-content/50 text-sm mt-1">
-                The interviewer has been notified of all violations.
-              </p>
-              <div className="card-actions mt-6">
-                <button
-                  onClick={() => navigate("/dashboard")}
-                  className="btn btn-error"
-                >
-                  Return to Dashboard
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {!terminated && <div className="flex-1">
+      <div className="flex-1">
         <PanelGroup direction="horizontal">
           {/* LEFT PANEL - CODE EDITOR & PROBLEM DETAILS */}
           <Panel defaultSize={50} minSize={30}>
@@ -475,7 +478,7 @@ function SessionPage() {
             </div>
           </Panel>
         </PanelGroup>
-      </div>}
+      </div>
     </div>
   );
 }

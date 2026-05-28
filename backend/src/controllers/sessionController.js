@@ -166,7 +166,8 @@ export async function recordViolation(req, res) {
     const { id } = req.params;
     const { type, description } = req.body;
 
-    if (!["fullscreen_exit", "tab_switch"].includes(type)) {
+    const validTypes = ["fullscreen_exit", "tab_switch", "phone_detected", "person_away", "looking_away", "multiple_persons", "external_webcam", "suspicious_object"];
+    if (!validTypes.includes(type)) {
       return res.status(400).json({ message: "Invalid violation type" });
     }
 
