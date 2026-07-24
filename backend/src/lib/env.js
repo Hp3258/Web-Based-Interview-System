@@ -16,4 +16,11 @@ export const ENV = {
 
   CLERK_PUBLISHABLE_KEY: process.env.CLERK_PUBLISHABLE_KEY,
   CLERK_SECRET_KEY: process.env.CLERK_SECRET_KEY,
+
+  JUDGE0_API_URL: process.env.JUDGE0_API_URL,
+
+  RESEND_API_KEY: process.env.RESEND_API_KEY,
+
+  GMAIL_USER: process.env.GMAIL_USER,
+  GMAIL_APP_PASSWORD: process.env.GMAIL_APP_PASSWORD,
 };

@@ -11,6 +11,14 @@ const sessionSchema = new mongoose.Schema(
       enum: ["easy", "medium", "hard"],
       default: "medium",
     },
+    code: {
+      type: String,
+      default: "",
+    },
+    language: {
+      type: String,
+      default: "javascript",
+    },
     host: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -21,10 +29,21 @@ const sessionSchema = new mongoose.Schema(
       ref: "User",
       default: null,
     },
+    uniqueToken: {
+      type: String,
+      unique: true,
+      sparse: true,
+    },
+    candidateEmail: {
+      type: String,
+    },
+    candidateName: {
+      type: String,
+    },
     status: {
       type: String,
-      enum: ["active", "completed"],
-      default: "active",
+      enum: ["invited", "waiting_approval", "active", "completed"],
+      default: "invited",
     },
     // stream video call ID
     callId: {
@@ -45,9 +64,25 @@ const sessionSchema = new mongoose.Schema(
         description: String,
       },
     ],
+    // interview transcript: array of sentences spoken during the session
+    transcript: [
+      {
+        speaker: {
+          type: String, // 'candidate' or 'host'
+        },
+        text: String,
+        timestamp: {
+          type: Date,
+          default: Date.now,
+        },
+      }
+    ],
   },
   { timestamps: true }
 );
+
+sessionSchema.index({ _id: 1 });
+sessionSchema.index({ uniqueToken: 1 });
 
 const Session = mongoose.model("Session", sessionSchema);
 

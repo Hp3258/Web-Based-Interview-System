@@ -26,7 +26,11 @@ function DashboardPage() {
     if (!roomConfig.title.trim()) return;
 
     createSessionMutation.mutate(
-      { title: roomConfig.title.trim() },
+      { 
+        title: roomConfig.title.trim(),
+        candidateName: roomConfig.candidateName?.trim(),
+        candidateEmail: roomConfig.candidateEmail?.trim(),
+      },
       {
         onSuccess: (data) => {
           setShowCreateModal(false);

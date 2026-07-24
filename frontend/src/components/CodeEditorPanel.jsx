@@ -1,14 +1,16 @@
 import Editor from "@monaco-editor/react";
-import { Loader2Icon, PlayIcon } from "lucide-react";
+import { Loader2Icon, PlayIcon, CheckIcon } from "lucide-react";
 import { LANGUAGE_CONFIG } from "../data/problems";
+import { memo } from "react";
 
-function CodeEditorPanel({
+const CodeEditorPanel = memo(function CodeEditorPanel({
   selectedLanguage,
   code,
   isRunning,
   onLanguageChange,
   onCodeChange,
   onRunCode,
+  onSubmitCode,
 }) {
   return (
     <div className="h-full bg-base-300 flex flex-col">
@@ -28,19 +30,35 @@ function CodeEditorPanel({
           </select>
         </div>
 
-        <button className="btn btn-primary btn-sm gap-2" disabled={isRunning} onClick={onRunCode}>
-          {isRunning ? (
-            <>
-              <Loader2Icon className="size-4 animate-spin" />
-              Running...
-            </>
-          ) : (
-            <>
-              <PlayIcon className="size-4" />
-              Run Code
-            </>
-          )}
-        </button>
+        <div className="flex items-center gap-2">
+          <button className="btn btn-secondary btn-sm gap-2" disabled={isRunning} onClick={onRunCode}>
+            {isRunning ? (
+              <>
+                <Loader2Icon className="size-4 animate-spin" />
+                Running...
+              </>
+            ) : (
+              <>
+                <PlayIcon className="size-4" />
+                Run
+              </>
+            )}
+          </button>
+          
+          <button className="btn btn-primary btn-sm gap-2" disabled={isRunning} onClick={onSubmitCode}>
+            {isRunning ? (
+              <>
+                <Loader2Icon className="size-4 animate-spin" />
+                Submitting...
+              </>
+            ) : (
+              <>
+                <CheckIcon className="size-4" />
+                Submit
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       <div className="flex-1">
@@ -61,5 +79,5 @@ function CodeEditorPanel({
       </div>
     </div>
   );
-}
+});
 export default CodeEditorPanel;

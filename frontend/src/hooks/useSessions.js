@@ -72,3 +72,12 @@ export const useEndSession = () => {
 
   return result;
 };
+
+export const useUpdateSession = () => {
+  const result = useMutation({
+    mutationKey: ["updateSession"],
+    mutationFn: sessionApi.updateSession,
+  });
+
+  return result;
+};

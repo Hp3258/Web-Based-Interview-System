@@ -7,6 +7,8 @@ import ProblemsPage from './pages/ProblemsPage';
 import { Toaster } from 'react-hot-toast';
 import DashboardPage from "./pages/DashboardPage";
 import SessionPage from "./pages/SessionPage";
+import JoinSessionPage from "./pages/JoinSessionPage";
+import EvaluationDashboard from "./pages/EvaluationDashboard";
 import { setGetToken } from "./lib/tokenStore";
 
 function App() {
@@ -29,6 +31,8 @@ function App() {
         <Route path="/problems" element={isSignedIn ? <ProblemsPage /> : <Navigate to={"/"} />} />
         <Route path="/problem/:id" element={isSignedIn ? <ProblemPage /> : <Navigate to={"/"} />} />
         <Route path="/session/:id" element={isSignedIn ? <SessionPage /> : <Navigate to={"/"} />} />
+        <Route path="/evaluation/:id" element={isSignedIn ? <EvaluationDashboard /> : <Navigate to={"/"} />} />
+        <Route path="/interview/join/:token" element={<JoinSessionPage />} />
 
       </Routes>
       <Toaster position='top-center' toastOptions={{ duration: 3000 }} />

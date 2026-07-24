@@ -32,8 +32,38 @@ function CreateSessionModal({
             />
           </div>
 
+          {/* CANDIDATE NAME */}
+          <div className="space-y-2">
+            <label className="label">
+              <span className="label-text font-semibold">Candidate Name</span>
+              <span className="label-text-alt text-error">*</span>
+            </label>
+            <input
+              type="text"
+              className="input input-bordered w-full"
+              placeholder="e.g. John Doe"
+              value={roomConfig.candidateName || ""}
+              onChange={(e) => setRoomConfig({ ...roomConfig, candidateName: e.target.value })}
+            />
+          </div>
+
+          {/* CANDIDATE EMAIL */}
+          <div className="space-y-2">
+            <label className="label">
+              <span className="label-text font-semibold">Candidate Email</span>
+              <span className="label-text-alt text-error">*</span>
+            </label>
+            <input
+              type="email"
+              className="input input-bordered w-full"
+              placeholder="e.g. john@example.com"
+              value={roomConfig.candidateEmail || ""}
+              onChange={(e) => setRoomConfig({ ...roomConfig, candidateEmail: e.target.value })}
+            />
+          </div>
+
           {/* ROOM SUMMARY */}
-          {roomConfig.title.trim() && (
+          {roomConfig.title?.trim() && (
             <div className="alert alert-success">
               <Code2Icon className="size-5" />
               <div>
@@ -41,9 +71,11 @@ function CreateSessionModal({
                 <p>
                   Session: <span className="font-medium">{roomConfig.title}</span>
                 </p>
-                <p>
-                  Max Participants: <span className="font-medium">2 (1-on-1)</span>
-                </p>
+                {roomConfig.candidateEmail && (
+                  <p>
+                    Inviting: <span className="font-medium">{roomConfig.candidateEmail}</span>
+                  </p>
+                )}
               </div>
             </div>
           )}
@@ -57,7 +89,7 @@ function CreateSessionModal({
           <button
             className="btn btn-primary gap-2"
             onClick={onCreateRoom}
-            disabled={isCreating || !roomConfig.title.trim()}
+            disabled={isCreating || !roomConfig.title?.trim() || !roomConfig.candidateName?.trim() || !roomConfig.candidateEmail?.trim()}
           >
             {isCreating ? (
               <LoaderIcon className="size-5 animate-spin" />

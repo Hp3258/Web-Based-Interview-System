@@ -20,6 +20,11 @@ getActiveSessions: async () => {
     return response.data;
   },
 
+  updateSession: async ({ id, data }) => {
+    const response = await axiosInstance.put(`/sessions/${id}`, data);
+    return response.data;
+  },
+
   joinSession: async (id) => {
     const response = await axiosInstance.post(`/sessions/${id}/join`);
     return response.data;
@@ -37,6 +42,13 @@ getActiveSessions: async () => {
   },
   getStreamToken: async () => {
     const response = await axiosInstance.get(`/chat/token`);
+    return response.data;
+  },
+  addTranscript: async ({ sessionId, text, speaker }) => {
+    const response = await axiosInstance.post(`/sessions/${sessionId}/transcript`, {
+      text,
+      speaker,
+    });
     return response.data;
   },
 };

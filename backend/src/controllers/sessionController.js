@@ -1,9 +1,12 @@
 import { chatClient, streamClient } from "../lib/stream.js";
 import Session from "../models/Session.js";
+import crypto from "crypto";
+import { sendInviteEmail } from "../lib/email.js";
+import { ENV } from "../lib/env.js";
 
 export async function createSession(req, res) {
   try {
-    const { title } = req.body;
+    const { title, candidateEmail, candidateName } = req.body;
     const userId = req.user._id;
     const clerkId = req.user.clerkId;
 
@@ -12,9 +15,19 @@ export async function createSession(req, res) {
     }
 
     const callId = `session_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    const uniqueToken = crypto.randomBytes(16).toString("hex");
 
     // store title in the 'problem' field (reusing existing schema field)
-    const session = await Session.create({ problem: title.trim(), difficulty: "medium", host: userId, callId });
+    const session = await Session.create({ 
+      problem: title.trim(), 
+      difficulty: "medium", 
+      host: userId, 
+      callId,
+      uniqueToken,
+      candidateEmail,
+      candidateName,
+      status: "invited"
+    });
 
     await streamClient.video.call("default", callId).getOrCreate({
       data: {
@@ -31,6 +44,21 @@ export async function createSession(req, res) {
 
     await channel.create();
 
+    if (candidateEmail) {
+      const sessionUrl = `${ENV.CLIENT_URL}/interview/join/${uniqueToken}`;
+      console.log(`\n==========================================`);
+      console.log(`INVITE LINK FOR ${candidateName} (${candidateEmail}):`);
+      console.log(sessionUrl);
+      console.log(`==========================================\n`);
+
+      await sendInviteEmail({
+        toEmail: candidateEmail,
+        sessionTitle: title.trim(),
+        sessionUrl,
+        hostName: req.user.name
+      });
+    }
+
     res.status(201).json({ session });
   } catch (error) {
     console.log("Error in createSession controller:", error.message);
@@ -39,13 +67,30 @@ export async function createSession(req, res) {
 }
 
 
+export async function verifyToken(req, res) {
+  try {
+    const { token } = req.params;
+    const session = await Session.findOne({ uniqueToken: token })
+      .populate("host", "name profileImage").lean();
+
+    if (!session) {
+      return res.status(404).json({ message: "Invalid or expired token" });
+    }
+
+    res.status(200).json({ session });
+  } catch (error) {
+    console.log("Error in verifyToken controller:", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
 export async function getActiveSessions(_, res) {
   try {
     const sessions = await Session.find({ status: "active" })
       .populate("host", "name profileImage email clerkId")
       .populate("participant", "name profileImage email clerkId")
       .sort({ createdAt: -1 })
-      .limit(20);
+      .limit(20).lean();
 
     res.status(200).json({ sessions });
   } catch (error) {
@@ -64,7 +109,7 @@ export async function getMyRecentSessions(req, res) {
       $or: [{ host: userId }, { participant: userId }],
     })
       .sort({ createdAt: -1 })
-      .limit(20);
+      .limit(20).lean();
 
     res.status(200).json({ sessions });
   } catch (error) {
@@ -79,7 +124,7 @@ export async function getSessionById(req, res) {
 
     const session = await Session.findById(id)
       .populate("host", "name email profileImage clerkId")
-      .populate("participant", "name email profileImage clerkId");
+      .populate("participant", "name email profileImage clerkId").lean();
 
     if (!session) return res.status(404).json({ message: "Session not found" });
 
@@ -100,7 +145,8 @@ export async function joinSession(req, res) {
 
     if (!session) return res.status(404).json({ message: "Session not found" });
 
-    if (session.status !== "active") {
+    // Allow joining if session is invited, waiting_approval, or already active
+    if (session.status === "completed") {
       return res.status(400).json({ message: "Cannot join a completed session" });
     }
 
@@ -112,6 +158,7 @@ export async function joinSession(req, res) {
     if (session.participant) return res.status(409).json({ message: "Session is full" });
 
     session.participant = userId;
+    session.status = "active"; // Mark session as active when candidate joins
     await session.save();
 
     const channel = chatClient.channel("messaging", session.callId);
@@ -186,6 +233,64 @@ export async function recordViolation(req, res) {
     });
   } catch (error) {
     console.log("Error in recordViolation controller:", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
+export async function updateSession(req, res) {
+  try {
+    const { id } = req.params;
+    const { problem, difficulty, code, language } = req.body;
+    const userId = req.user._id;
+
+    const session = await Session.findById(id);
+    if (!session) return res.status(404).json({ message: "Session not found" });
+
+    if (session.host.toString() !== userId.toString() && session.participant?.toString() !== userId.toString()) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+
+    if (problem) session.problem = problem;
+    if (difficulty) session.difficulty = difficulty;
+    if (code !== undefined) session.code = code;
+    if (language) session.language = language;
+
+    await session.save();
+    res.status(200).json({ session });
+  } catch (error) {
+    console.log("Error in updateSession controller:", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
+export async function addTranscript(req, res) {
+  try {
+    const { id } = req.params;
+    const { text, speaker } = req.body;
+
+    if (!text) {
+      return res.status(400).json({ message: "Transcript text is required" });
+    }
+
+    const session = await Session.findById(id);
+    if (!session) return res.status(404).json({ message: "Session not found" });
+
+    // Only allow active sessions to append transcript
+    if (session.status !== "active" && session.status !== "invited" && session.status !== "waiting_approval") {
+      return res.status(400).json({ message: "Session is not active" });
+    }
+
+    session.transcript.push({
+      speaker: speaker || "candidate",
+      text,
+      timestamp: new Date()
+    });
+
+    await session.save();
+
+    res.status(200).json({ message: "Transcript added" });
+  } catch (error) {
+    console.log("Error in addTranscript controller:", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
 }

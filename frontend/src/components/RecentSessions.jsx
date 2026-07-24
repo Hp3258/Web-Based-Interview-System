@@ -1,6 +1,7 @@
 import { Code2, Clock, Users, Trophy, Loader } from "lucide-react";
 import { getDifficultyBadgeClass } from "../lib/utils";
 import { formatDistanceToNow } from "date-fns";
+import { Link } from "react-router";
 
 function RecentSessions({ sessions, isLoading }) {
   return (
@@ -20,9 +21,10 @@ function RecentSessions({ sessions, isLoading }) {
             </div>
           ) : sessions.length > 0 ? (
             sessions.map((session) => (
-              <div
+              <Link
+                to={session.status === "completed" ? `/evaluation/${session._id}` : `/session/${session._id}`}
                 key={session._id}
-                className={`card relative ${
+                className={`card relative block transition-all ${
                   session.status === "active"
                     ? "bg-success/10 border-success/30 hover:border-success/60"
                     : "bg-base-200 border-base-300 hover:border-primary/30"
@@ -83,7 +85,7 @@ function RecentSessions({ sessions, isLoading }) {
                     </span>
                   </div>
                 </div>
-              </div>
+              </Link>
             ))
           ) : (
             <div className="col-span-full text-center py-16">
