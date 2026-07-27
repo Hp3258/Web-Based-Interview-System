@@ -396,8 +396,9 @@ function SessionPage() {
   }, [selectedLanguage, problemData, call]);
 
   const handleCopyLink = () => {
-    navigator.clipboard.writeText(window.location.href);
-    toast.success("Session link copied! Share it with your candidate.");
+    const inviteLink = `${window.location.origin}/interview/join/${session?.uniqueToken}`;
+    navigator.clipboard.writeText(inviteLink);
+    toast.success("Invite link copied! Send this to your candidate.");
   };
 
   const handleEndSession = () => {
@@ -574,8 +575,8 @@ function SessionPage() {
                         {problemData?.category && (
                           <span className="badge badge-outline text-xs">{problemData.category}</span>
                         )}
-                        {/* Copy invite link — visible to host when session is active */}
-                        {isHost && session?.status === "active" && (
+                        {/* Copy invite link — visible to host when session is not completed */}
+                        {isHost && session?.status !== "completed" && (
                           <button
                             onClick={handleCopyLink}
                             className="btn btn-outline btn-sm gap-2"
