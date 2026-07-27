@@ -1,14 +1,13 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { createClient } from "@deepgram/sdk";
 import { sessionApi } from "../api/sessions";
 
-// Only run transcription if we have an API key and session is active
+// Uses native browser WebSocket to connect to Deepgram (no Node.js SDK needed)
 export default function useTranscription(sessionId, isCandidate, isActive, terminated) {
   const [liveTranscript, setLiveTranscript] = useState("");
   const [isTranscribing, setIsTranscribing] = useState(false);
   
   const mediaRecorderRef = useRef(null);
-  const deepgramSocketRef = useRef(null);
+  const wsRef = useRef(null);
   const keepAliveIntervalRef = useRef(null);
   const lastTranscriptTime = useRef(Date.now());
 
@@ -27,67 +26,71 @@ export default function useTranscription(sessionId, isCandidate, isActive, termi
       const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
       mediaRecorderRef.current = mediaRecorder;
 
-      // 3. Connect to Deepgram WebSocket
-      const deepgramClient = createClient(apiKey);
-      const connection = deepgramClient.listen.live({
-        model: "nova-2",
-        language: "en-US",
-        smart_format: true,
-      });
+      // 3. Connect to Deepgram via native WebSocket
+      const wsUrl = `wss://api.deepgram.com/v1/listen?model=nova-2&language=en-US&smart_format=true`;
+      const ws = new WebSocket(wsUrl, ["token", apiKey]);
+      wsRef.current = ws;
 
-      deepgramSocketRef.current = connection;
-
-      connection.on("open", () => {
+      ws.onopen = () => {
         setIsTranscribing(true);
-        console.log("Deepgram connection opened");
+        console.log("Deepgram WebSocket opened");
 
         // Send audio data as it becomes available
-        mediaRecorder.addEventListener("dataavailable", async (event) => {
-          if (event.data.size > 0 && connection.getReadyState() === 1) {
-            connection.send(event.data);
+        mediaRecorder.addEventListener("dataavailable", (event) => {
+          if (event.data.size > 0 && ws.readyState === WebSocket.OPEN) {
+            ws.send(event.data);
           }
         });
 
         // Start capturing every 250ms
         mediaRecorder.start(250);
 
-        // Keep-alive ping
+        // Keep-alive ping every 10 seconds
         keepAliveIntervalRef.current = setInterval(() => {
-          connection.keepAlive();
-        }, 10000);
-      });
-
-      connection.on("Results", (data) => {
-        const transcript = data.channel.alternatives[0].transcript;
-        if (transcript) {
-          const isFinal = data.is_final;
-          
-          if (isFinal) {
-            // Save completed sentence to the backend
-            sessionApi.addTranscript({
-              sessionId,
-              text: transcript,
-              speaker: isCandidate ? "candidate" : "host"
-            }).catch(err => console.error("Failed to save transcript", err));
-            
-            // Clear live text as it's been committed
-            setLiveTranscript("");
-            lastTranscriptTime.current = Date.now();
-          } else {
-            // Update live UI
-            setLiveTranscript(transcript);
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: "KeepAlive" }));
           }
+        }, 10000);
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === "Results") {
+            const transcript = data.channel?.alternatives?.[0]?.transcript;
+            if (transcript) {
+              const isFinal = data.is_final;
+              
+              if (isFinal) {
+                // Save completed sentence to the backend
+                sessionApi.addTranscript({
+                  sessionId,
+                  text: transcript,
+                  speaker: isCandidate ? "candidate" : "host"
+                }).catch(err => console.error("Failed to save transcript", err));
+                
+                // Clear live text as it's been committed
+                setLiveTranscript("");
+                lastTranscriptTime.current = Date.now();
+              } else {
+                // Update live UI
+                setLiveTranscript(transcript);
+              }
+            }
+          }
+        } catch (e) {
+          // Ignore non-JSON messages
         }
-      });
+      };
 
-      connection.on("error", (err) => {
-        console.error("Deepgram Error:", err);
-      });
+      ws.onerror = (err) => {
+        console.error("Deepgram WebSocket Error:", err);
+      };
 
-      connection.on("close", () => {
+      ws.onclose = () => {
         setIsTranscribing(false);
-        console.log("Deepgram connection closed");
-      });
+        console.log("Deepgram WebSocket closed");
+      };
 
     } catch (err) {
       console.error("Failed to start transcription:", err);
@@ -100,8 +103,9 @@ export default function useTranscription(sessionId, isCandidate, isActive, termi
       mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
     }
     
-    if (deepgramSocketRef.current) {
-      deepgramSocketRef.current.finish();
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: "CloseStream" }));
+      wsRef.current.close();
     }
     
     if (keepAliveIntervalRef.current) {
