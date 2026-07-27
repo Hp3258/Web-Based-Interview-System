@@ -1,7 +1,7 @@
 import { chatClient, streamClient } from "../lib/stream.js";
 import Session from "../models/Session.js";
 import crypto from "crypto";
-import { sendInterviewInvite } from "../lib/resend.js";
+import { sendInviteEmail } from "../lib/email.js";
 import { ENV } from "../lib/env.js";
 
 export async function createSession(req, res) {
@@ -51,17 +51,17 @@ export async function createSession(req, res) {
       console.log(sessionUrl);
       console.log(`==========================================\n`);
 
-      const emailResult = await sendInterviewInvite({
-        to: candidateEmail,
-        candidateName: candidateName || candidateEmail.split("@")[0],
+      const emailResult = await sendInviteEmail({
+        toEmail: candidateEmail,
         sessionTitle: title.trim(),
-        joinLink: sessionUrl,
+        sessionUrl,
+        hostName: req.user.name
       });
 
       if (!emailResult.success) {
-        console.error("[email] Failed to send invite via Resend:", emailResult.error);
+        console.error("[email] Failed to send invite:", emailResult.reason);
       } else {
-        console.log(`[email] Invite successfully sent to ${candidateEmail} via Resend`);
+        console.log(`[email] Invite successfully sent to ${candidateEmail}`);
       }
     }
 
