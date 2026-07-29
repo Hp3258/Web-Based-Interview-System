@@ -16,27 +16,27 @@ import { sendInviteEmail } from "../lib/email.js";
 
 const router = express.Router();
 
-// ─── Email smoke-test (remove before final production) ───────────────────────
-// POST /api/sessions/test-email   body: { "to": "test@example.com" }
-router.post("/test-email", protectRoute, async (req, res) => {
-  const { to } = req.body;
-  if (!to) return res.status(400).json({ message: "Provide 'to' email in request body" });
+// ─── Email smoke-test ───────────────────────────────────────────────────────
+// GET /api/sessions/test-email?to=anyemail@gmail.com
+router.get("/test-email", async (req, res) => {
+  const to = req.query.to;
+  if (!to) return res.status(400).json({ message: "Add ?to=youremail@gmail.com to the URL" });
 
   const result = await sendInviteEmail({
     toEmail: to,
     candidateName: "Test Candidate",
     sessionTitle: "Email Test Session",
     sessionUrl: "https://example.com/interview/join/test-token-123",
-    hostName: req.user?.name || "HR",
+    hostName: "HR Team",
   });
 
   if (result.success) {
-    return res.json({ message: `✅ Test email sent to ${to}`, data: result.data });
+    return res.json({ success: true, message: `✅ Email sent to ${to}` });
   } else {
-    return res.status(500).json({ message: `❌ Email failed: ${result.reason}` });
+    return res.status(500).json({ success: false, error: result.reason });
   }
 });
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────
 
 router.post("/", protectRoute, createSession);
 router.get("/active", protectRoute, getActiveSessions);
