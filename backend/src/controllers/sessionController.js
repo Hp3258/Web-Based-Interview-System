@@ -53,9 +53,10 @@ export async function createSession(req, res) {
 
       const emailResult = await sendInviteEmail({
         toEmail: candidateEmail,
+        candidateName: candidateName || "Candidate",
         sessionTitle: title.trim(),
         sessionUrl,
-        hostName: req.user.name
+        hostName: req.user.name || "Your Interviewer",
       });
 
       if (!emailResult.success) {
