@@ -1,5 +1,10 @@
 import nodemailer from "nodemailer";
 import { ENV } from "./env.js";
+import dns from "dns";
+
+// Force IPv4 resolution. Render sometimes has issues routing IPv6 traffic,
+// which causes the ENETUNREACH error when connecting to smtp.gmail.com.
+dns.setDefaultResultOrder("ipv4first");
 
 /**
  * Create a fresh transporter each call so env vars are always current.
