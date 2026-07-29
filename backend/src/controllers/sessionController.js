@@ -168,6 +168,13 @@ export async function joinSession(req, res) {
     session.status = "active"; // Mark session as active when candidate joins
     await session.save();
 
+    // Ensure the user exists in Stream Chat before adding them to the channel
+    await chatClient.upsertUser({
+      id: clerkId,
+      name: req.user.name || "Candidate",
+      image: req.user.profileImage || "",
+    });
+
     const channel = chatClient.channel("messaging", session.callId);
     await channel.addMembers([clerkId]);
 
