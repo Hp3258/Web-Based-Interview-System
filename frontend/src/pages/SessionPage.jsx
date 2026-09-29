@@ -302,15 +302,29 @@ function SessionPage() {
     [call, id]
   );
 
+  // Throttle typing events to once every 2 seconds to prevent WebSocket flooding
+  const sendTypingEvent = useMemo(
+    () => {
+      let lastCall = 0;
+      return () => {
+        const now = Date.now();
+        if (now - lastCall >= 2000) {
+          lastCall = now;
+          if (call && user?.id) {
+            call.sendCustomEvent({ type: "typing", data: { userId: user.id } }).catch(console.error);
+          }
+        }
+      };
+    },
+    [call, user?.id]
+  );
+
   const onCodeChange = useCallback((value) => {
     setCode(value);
     codeRef.current = value;
     sendCodeUpdate(value, selectedLanguage);
-
-    if (call) {
-      call.sendCustomEvent({ type: "typing", data: { userId: user?.id } }).catch(console.error);
-    }
-  }, [sendCodeUpdate, selectedLanguage, call, user?.id]);
+    sendTypingEvent();
+  }, [sendCodeUpdate, selectedLanguage, sendTypingEvent]);
 
   // --- CUSTOM EVENTS: receive updates from other participant ---
   useEffect(() => {
@@ -407,6 +421,17 @@ function SessionPage() {
       endSessionMutation.mutate(id, { onSuccess: () => navigate("/dashboard") });
     }
   };
+
+  const memoizedStreamVideo = useMemo(() => {
+    if (!streamClient || !call) return null;
+    return (
+      <StreamVideo client={streamClient}>
+        <StreamCall call={call}>
+          <VideoCallUI chatClient={chatClient} channel={channel} />
+        </StreamCall>
+      </StreamVideo>
+    );
+  }, [streamClient, call, chatClient, channel]);
 
   return (
     <div className="h-screen bg-base-100 flex flex-col">
@@ -680,11 +705,7 @@ function SessionPage() {
               ) : (
                 <div className="h-full relative flex flex-col">
                   <div className="flex-1 min-h-0">
-                    <StreamVideo client={streamClient}>
-                      <StreamCall call={call}>
-                        <VideoCallUI chatClient={chatClient} channel={channel} />
-                      </StreamCall>
-                    </StreamVideo>
+                    {memoizedStreamVideo}
                   </div>
                   
                   {/* Live Transcript Overlay/Bar */}
