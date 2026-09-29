@@ -9,7 +9,6 @@ const sessionSchema = new mongoose.Schema(
     problem: {
       type: String,
       default: "",
-      required: true,
     },
     difficulty: {
       type: String,
