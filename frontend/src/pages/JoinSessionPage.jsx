@@ -121,7 +121,7 @@ function JoinSessionPage() {
               </div>
             </div>
             <div>
-              <h2 className="card-title text-xl">{session.problem}</h2>
+              <h2 className="card-title text-xl">{session.title || session.problem}</h2>
               <p className="text-sm text-base-content/60">Hosted by {session.host?.name}</p>
             </div>
           </div>

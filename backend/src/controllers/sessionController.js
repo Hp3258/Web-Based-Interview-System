@@ -17,9 +17,9 @@ export async function createSession(req, res) {
     const callId = `session_${Date.now()}_${Math.random().toString(36).substring(7)}`;
     const uniqueToken = crypto.randomBytes(16).toString("hex");
 
-    // store title in the 'problem' field (reusing existing schema field)
     const session = await Session.create({ 
-      problem: title.trim(), 
+      title: title.trim(),
+      problem: "", 
       difficulty: "medium", 
       host: userId, 
       callId,

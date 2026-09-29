@@ -75,6 +75,7 @@ export default function useTranscription(sessionId, isCandidate, isActive, termi
               } else {
                 // Update live UI
                 setLiveTranscript(transcript);
+                lastTranscriptTime.current = Date.now(); // Prevent auto-clearing while speaking
               }
             }
           }

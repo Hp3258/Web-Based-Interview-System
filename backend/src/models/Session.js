@@ -2,8 +2,13 @@
 
 const sessionSchema = new mongoose.Schema(
   {
+    title: {
+      type: String,
+      default: "Interview Session",
+    },
     problem: {
       type: String,
+      default: "",
       required: true,
     },
     difficulty: {

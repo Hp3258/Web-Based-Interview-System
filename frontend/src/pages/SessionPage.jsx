@@ -559,7 +559,7 @@ function SessionPage() {
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1">
                         <h1 className="text-2xl font-bold text-base-content">
-                          {session?.problem || "Loading..."}
+                          {session?.title || session?.problem || "Loading..."}
                         </h1>
                         <p className="text-base-content/60 mt-1 text-sm">
                           Host: {session?.host?.name || "Loading..."} •{" "}
