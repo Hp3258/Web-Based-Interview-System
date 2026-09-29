@@ -52,16 +52,22 @@ function JoinSessionPage() {
   const handleRequestJoin = () => {
     if (!session || !user) return;
     setStatus("requesting");
-    
-    // Join the socket room for this session (so we can receive responses)
-    // Wait, the host is in the room. The candidate can just connect and listen to their own socket.id.
-    // The server emits back to candidateSocketId.
-    socket.emit("request_to_join", {
-      sessionId: session._id,
-      candidateName: user.fullName || user.firstName || "Candidate",
-    });
-    
-    setStatus("waiting");
+
+    const emitJoinRequest = () => {
+      socket.emit("request_to_join", {
+        sessionId: session._id,
+        candidateName: user.fullName || user.firstName || "Candidate",
+      });
+      setStatus("waiting");
+    };
+
+    // Ensure socket is connected before emitting
+    if (socket.connected) {
+      emitJoinRequest();
+    } else {
+      socket.connect();
+      socket.once("connect", emitJoinRequest);
+    }
   };
 
   if (status === "verifying") {
