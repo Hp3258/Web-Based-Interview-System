@@ -85,6 +85,15 @@ app.use("/api/sessions", sessionRoutes);  //antigravity
 // Code execution routes
 app.use("/api/code", codeRoutes);
 
+// ─── Global crash guards ─────────────────────────────────────────────────────
+// Prevents one bad request from killing the entire Render instance
+process.on("uncaughtException", (err) => {
+  console.error("⚠️  Uncaught Exception (server kept alive):", err.message);
+});
+process.on("unhandledRejection", (reason) => {
+  console.error("⚠️  Unhandled Rejection (server kept alive):", reason);
+});
+
 // start server
 const startServer = async () => {
   try {
@@ -92,6 +101,19 @@ const startServer = async () => {
 
     server.listen(ENV.PORT, () => {
       console.log(`Server running on port ${ENV.PORT}`);
+
+      // ─── Keep-alive self-ping (prevents Render free tier spin-down) ──────
+      const RENDER_URL = process.env.RENDER_EXTERNAL_URL;
+      if (RENDER_URL) {
+        setInterval(async () => {
+          try {
+            await fetch(`${RENDER_URL}/health`);
+            console.log("[keep-alive] Pinged self to prevent spin-down");
+          } catch (e) {
+            console.warn("[keep-alive] Self-ping failed:", e.message);
+          }
+        }, 14 * 60 * 1000); // every 14 minutes
+      }
     });
   } catch (error) {
     console.error("Failed to start server:", error.message);
@@ -99,6 +121,4 @@ const startServer = async () => {
   }
 };
 
-
-
-startServer();
+startServer();

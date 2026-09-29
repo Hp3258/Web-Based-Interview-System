@@ -6,8 +6,8 @@ const apiKey = ENV.STREAM_API_KEY;
 const apiSecret = ENV.STREAM_SECRET_KEY;
 
 if (!apiKey || !apiSecret) {
-  console.error("STREAM_API_KEY or STREAM_SECRET_KEY is missing");
-  process.exit(1);
+  console.error("⚠️  STREAM_API_KEY or STREAM_SECRET_KEY is missing — Stream features will not work.");
+  // Do NOT process.exit(1) — let the rest of the server still start
 }
 
 // Stream Chat client
