@@ -96,34 +96,6 @@ npm run dev
 
 ---
 
-## 🔑 Environment Variables
-
-You will need to create a `.env` file in both the `frontend` and `backend` directories.
-
-### `backend/.env`
-```env
-PORT=3000
-MONGODB_URI=your_mongodb_connection_string
-CLERK_SECRET_KEY=your_clerk_secret_key
-STREAM_API_KEY=your_stream_api_key
-STREAM_API_SECRET=your_stream_api_secret
-CLIENT_URL=http://localhost:5173
-```
-
-### `frontend/.env`
-```env
-VITE_API_URL=http://localhost:3000
-VITE_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
-VITE_STREAM_API_KEY=your_stream_api_key
-VITE_DEEPGRAM_API_KEY=your_deepgram_api_key
-VITE_RAPIDAPI_KEY=your_rapidapi_key
-
-# Email Setup (For Vercel Serverless Function)
-GMAIL_USER=your_gmail@gmail.com
-GMAIL_APP_PASSWORD=your_gmail_app_password
-```
-
----
 
 ## 🚀 Deployment Architecture
 
